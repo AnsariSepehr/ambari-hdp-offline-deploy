@@ -1,0 +1,31 @@
+# Example inventory for a 40-node offline Ambari/HDP cluster.
+# Copy this file to hosts.ini and replace the placeholder IPs with your
+# real, internal node addresses before running any playbook.
+#
+#   cp inventory/hosts.ini.example inventory/hosts.ini
+#
+# hosts.ini is gitignored on purpose — never commit real node IPs or hostnames.
+
+[all:vars]
+ansible_python_interpreter=/usr/bin/python3
+
+[all]
+dpm01 ansible_host=10.0.0.1
+dpm02 ansible_host=10.0.0.2
+dpm03 ansible_host=10.0.0.3
+dpm04 ansible_host=10.0.0.4
+dpm05 ansible_host=10.0.0.5
+# ... repeat for remaining nodes up to your cluster size (e.g. dpm40)
+
+[ambari_server]
+dpm01 ansible_host=10.0.0.1
+
+[ambari_agent]
+dpm02 ansible_host=10.0.0.2
+dpm03 ansible_host=10.0.0.3
+dpm04 ansible_host=10.0.0.4
+dpm05 ansible_host=10.0.0.5
+# ... remaining agent nodes
+
+[mysql]
+dpm01 ansible_host=10.0.0.1
