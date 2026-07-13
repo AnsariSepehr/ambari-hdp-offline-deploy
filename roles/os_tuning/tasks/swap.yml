@@ -1,0 +1,23 @@
+- name: Disable swap immediately (current boot)
+  ansible.builtin.command: swapoff -a
+  become: true
+  changed_when: false   # swapoff -a is usually idempotent, no "changed" noise
+
+- name: Remove all swap entries from /etc/fstab (permanent disable)
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^[^#].*\sswap\s'
+    state: absent
+    backup: true
+  become: true
+
+# Optional but recommended: also remove any swap files that might exist
+- name: Remove common swap files if they exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  become: true
+  loop:
+    - /swapfile
+    - /swap.img
+  when: ansible_distribution in ['Ubuntu', 'Debian']   # adjust or remove the 'when' if needed

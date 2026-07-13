@@ -1,0 +1,31 @@
+- name: Disable THP at runtime
+  shell: |
+    echo never > /sys/kernel/mm/transparent_hugepage/enabled
+    echo never > /sys/kernel/mm/transparent_hugepage/defrag
+  args:
+    executable: /bin/bash
+  when: disable_thp
+
+- name: Create systemd service to disable THP on boot
+  copy:
+    dest: /etc/systemd/system/disable-thp.service
+    mode: '0644'
+    content: |
+      [Unit]
+      Description=Disable Transparent Huge Pages
+      After=sysinit.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash -c 'echo never > /sys/kernel/mm/transparent_hugepage/enabled && echo never > /sys/kernel/mm/transparent_hugepage/defrag'
+
+      [Install]
+      WantedBy=multi-user.target
+  when: disable_thp
+
+- name: Enable disable-thp service
+  systemd:
+    name: disable-thp
+    enabled: yes
+    daemon_reload: yes
+  when: disable_thp

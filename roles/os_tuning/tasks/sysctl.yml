@@ -1,0 +1,7 @@
+- name: Apply kernel parameters
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  loop: "{{ os_tuning_sysctl | dict2items }}"

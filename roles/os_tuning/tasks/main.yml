@@ -1,0 +1,6 @@
+- import_tasks: sysctl.yml
+- import_tasks: swap.yml
+- import_tasks: limits.yml
+- import_tasks: thp.yml
+- import_tasks: selinux.yml
+- import_tasks: setup-os.yml

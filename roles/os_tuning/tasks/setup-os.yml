@@ -1,0 +1,99 @@
+---
+- name: Set system-wide umask and locale via profile.d
+  template:
+    src: profile.d/00-os-baseline.sh.j2
+    dest: /etc/profile.d/00-os-baseline.sh
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Install dnf-plugins-core (provides config-manager)
+  dnf:
+    name: dnf-plugins-core
+    state: present
+
+- name: Clean dnf cache after repo changes
+  command: dnf clean all
+  changed_when: false
+  when: ansible_distribution in ['Rocky', 'AlmaLinux', 'CentOS']
+
+- name: Run dnf distro-sync (aggressive package version sync - optional)
+  dnf:
+    name: "*"
+    state: latest
+    distro_sync: true
+  when: os_run_distro_sync | default(false) | bool
+  register: distro_sync_result
+
+- name: Install base utilities and tools
+  dnf:
+    name:
+      - systemd*               # wildcard - be careful, usually safe
+      - nano
+      - tar
+      - git
+      - curl
+      - bind-utils
+      - unzip
+      - wget
+      - rsync
+      - pdsh                    # if DENV_INSTALL_PDSH == 'y' later we can conditional
+      - gzip
+      - bzip2
+      - zip
+      - unzip                   # duplicate but harmless
+      - jq
+      - createrepo
+      - yum-utils
+    state: present
+
+- name: Install additional OS and Hadoop-related libraries
+  dnf:
+    name:
+      - ntfs-3g
+      - smartmontools
+      - parted
+      - cifs-utils
+      - nss-softokn
+      - nss
+      - nss-tools
+      - nss-sysinit
+      - nss-softokn-freebl
+      - libffi
+      - libgomp
+      - glibc-common
+      - cups-libs
+      - libnetfilter_conntrack
+      - sed
+      - snappy-devel
+      - snappy
+      - libtirpc-devel
+    state: present
+
+- name: Install redhat-lsb (for compatibility/scripts)
+  dnf:
+    name: redhat-lsb
+    state: present
+
+- name: Install chkconfig (needed for some ambari-agent / legacy init scripts)
+  dnf:
+    name: chkconfig
+    state: present
+
+- name: Install etckeeper (optional - for /etc change tracking)
+  dnf:
+    name: etckeeper
+    state: present
+  register: etckeeper_installed
+
+- name: Initialize etckeeper if newly installed
+  command: etckeeper init
+  args:
+    creates: /etc/etckeeper/etckeeper.conf  # rough check
+  when: etckeeper_installed.changed
+
+- name: Create initial etckeeper baseline commit
+  command: etckeeper commit "Ansible baseline - initial OS configuration"
+  changed_when: true
+  failed_when: false   # commit can be "nothing to commit" → ok
+  when: etckeeper_installed.changed or etckeeper_installed is success

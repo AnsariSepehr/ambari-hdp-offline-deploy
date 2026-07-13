@@ -1,0 +1,19 @@
+- name: Configure nofile limits
+  pam_limits:
+    domain: "*"
+    limit_type: "{{ item.type }}"
+    limit_item: nofile
+    value: "{{ item.value }}"
+  loop:
+    - { type: soft, value: "{{ os_tuning_nofile_soft }}" }
+    - { type: hard, value: "{{ os_tuning_nofile_hard }}" }
+
+- name: Configure nproc limits
+  pam_limits:
+    domain: "*"
+    limit_type: "{{ item.type }}"
+    limit_item: nproc
+    value: "{{ item.value }}"
+  loop:
+    - { type: soft, value: "{{ os_tuning_nproc_soft }}" }
+    - { type: hard, value: "{{ os_tuning_nproc_hard }}" }
