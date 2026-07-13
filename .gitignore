@@ -1,0 +1,8 @@
+group_vars/secrets.yml
+inventory/hosts.ini
+*.tar.gz
+*.jar
+*.pem
+*.key
+*.retry
+.vault_pass
