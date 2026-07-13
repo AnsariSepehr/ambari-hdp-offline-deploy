@@ -1,0 +1,45 @@
+---
+# Python 3.12 installation variables
+
+# Source tarball path (relative to playbook)
+local_tar_path: "../files/Python-3.12.0.tgz"
+
+# Python version to install
+python_version: "3.12.0"
+
+# Installation prefix (where Python will be installed)
+python_install_prefix: "/usr/local"
+
+# Temporary directory for extraction and compilation
+python_build_dir: "/tmp/python{{ python_version }}-build"
+
+# Python binary name for the alias
+python_alias: "python312"
+
+# Build dependencies (may vary by distribution)
+python_build_dependencies:
+  - build-essential
+  - libssl-dev
+  - zlib1g-dev
+  - libncurses5-dev
+  - libncursesw5-dev
+  - libreadline-dev
+  - libsqlite3-dev
+  - libgdbm-dev
+  - libdb5.3-dev
+  - libbz2-dev
+  - libexpat1-dev
+  - liblzma-dev
+  - libffi-dev
+  - uuid-dev
+
+# Configure options for Python build
+python_configure_opts:
+  - "--enable-optimizations"
+  - "--with-ensurepip=install"
+
+# Number of cores to use for compilation (0 = auto-detect)
+python_make_jobs: 0
+
+# Shell profile file to add alias
+shell_profile: "/etc/profile.d/python312.sh"

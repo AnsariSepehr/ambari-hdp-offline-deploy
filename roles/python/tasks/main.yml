@@ -1,0 +1,125 @@
+---
+# Tasks to install Python 3.12 alongside existing Python installations
+
+- name: Install build dependencies for Python compilation
+  apt:
+    name: "{{ python_build_dependencies }}"
+    state: present
+    update_cache: yes
+  when: ansible_os_family == "Debian"
+  become: yes
+
+- name: Install build dependencies for Python compilation (RedHat)
+  yum:
+    name:
+      - gcc
+      - gcc-c++
+      - make
+      - openssl-devel
+      - zlib-devel
+      - ncurses-devel
+      - readline-devel
+      - sqlite-devel
+      - gdbm-devel
+      - bzip2-devel
+      - expat-devel
+      - xz-devel
+      - libffi-devel
+      - libuuid-devel
+    state: present
+  when: ansible_os_family == "RedHat"
+  become: yes
+
+- name: Create build directory
+  file:
+    path: "{{ python_build_dir }}"
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Copy Python tarball to remote host
+  copy:
+    src: "{{ local_tar_path }}"
+    dest: "{{ python_build_dir }}/Python-{{ python_version }}.tgz"
+    mode: '0644'
+  become: yes
+
+- name: Extract Python tarball
+  unarchive:
+    src: "{{ python_build_dir }}/Python-{{ python_version }}.tgz"
+    dest: "{{ python_build_dir }}"
+    remote_src: yes
+    creates: "{{ python_build_dir }}/Python-{{ python_version }}/configure"
+  become: yes
+
+- name: Determine number of CPU cores for compilation
+  set_fact:
+    make_jobs: "{{ python_make_jobs if python_make_jobs > 0 else ansible_processor_vcpus }}"
+
+- name: Configure Python build
+  command: >
+    ./configure
+    --prefix={{ python_install_prefix }}
+    {{ python_configure_opts | join(' ') }}
+  args:
+    chdir: "{{ python_build_dir }}/Python-{{ python_version }}"
+    creates: "{{ python_build_dir }}/Python-{{ python_version }}/Makefile"
+  become: yes
+
+- name: Compile Python (this may take several minutes)
+  command: make -j{{ make_jobs }}
+  args:
+    chdir: "{{ python_build_dir }}/Python-{{ python_version }}"
+    creates: "{{ python_build_dir }}/Python-{{ python_version }}/python"
+  become: yes
+  async: 1800  # 30 minutes timeout
+  poll: 10
+
+- name: Install Python to {{ python_install_prefix }}
+  command: make altinstall
+  args:
+    chdir: "{{ python_build_dir }}/Python-{{ python_version }}"
+    creates: "{{ python_install_prefix }}/bin/python3.12"
+  become: yes
+
+- name: Create profile script for Python 3.12 alias
+  copy:
+    dest: "{{ shell_profile }}"
+    content: |
+      # Python 3.12 alias
+      alias {{ python_alias }}="python3.12"
+      alias pip312="pip3.12"
+    mode: '0644'
+  become: yes
+
+- name: Verify Python 3.12 installation
+  command: "python3.12 --version"
+  register: python_version_output
+  changed_when: false
+
+- name: Display installed Python version
+  debug:
+    msg: "Successfully installed: {{ python_version_output.stdout }}"
+
+- name: Clean up build directory
+  file:
+    path: "{{ python_build_dir }}"
+    state: absent
+  become: yes
+  when: python_cleanup_build_dir | default(true)
+
+- name: Remind about sourcing profile
+  debug:
+    msg: |
+      Python {{ python_version }} has been installed successfully!
+      
+      To use it immediately in your current session, run:
+        source {{ shell_profile }}
+      
+      Or simply log out and log back in.
+      
+      You can now use:
+        {{ python_alias }} --version
+        pip312 --version
+      
+      The existing Python 3.9 installation remains untouched.

@@ -1,0 +1,4 @@
+---
+- name: Refresh DNF cache
+  command: dnf makecache
+  changed_when: false
