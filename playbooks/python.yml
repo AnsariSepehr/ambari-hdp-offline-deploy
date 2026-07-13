@@ -1,0 +1,10 @@
+---
+- name: Setup Python 3.12 on all nodes
+  hosts: all
+  vars_files:
+    - ../group_vars/secrets.yml
+    - ../group_vars/all.yml
+  roles:
+    - python
+  tags:
+    - python

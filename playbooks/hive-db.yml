@@ -1,0 +1,10 @@
+---
+- name: Setup Hive database on MySQL 
+  hosts: mysql
+  vars_files:
+    - ../group_vars/secrets.yml
+    - ../group_vars/all.yml
+  roles:
+    - hive-db
+  tags:
+    - hive-db

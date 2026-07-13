@@ -1,0 +1,9 @@
+---
+- name: Setup ranger databases on MySQL 
+  hosts: mysql
+  vars_files:
+    - ../group_vars/secrets.yml
+  roles:
+    - ranger-db
+  tags:
+    - ranger-db

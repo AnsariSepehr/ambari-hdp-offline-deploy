@@ -1,0 +1,10 @@
+---
+- name: Setup java8,java11,java17,java21 on all nodes
+  hosts: all
+  vars_files:
+    - ../group_vars/secrets.yml
+    - ../group_vars/all.yml
+  roles:
+    - java
+  tags:
+    - java

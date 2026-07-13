@@ -1,0 +1,9 @@
+---
+- name: Install HDP service packages on cluster nodes
+  hosts: ambari_agent
+  vars_files:
+    - ../group_vars/secrets.yml
+  roles:
+    - hdp-services
+  tags:
+    - hdp-services

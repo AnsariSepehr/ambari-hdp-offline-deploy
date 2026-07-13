@@ -1,0 +1,10 @@
+- import_playbook: os_tuning.yml
+- import_playbook: python.yml
+- import_playbook: java.yml
+- import_playbook: mysql.yml
+- import_playbook: ambari-server.yml
+- import_playbook: ambari-agent.yml
+- import_playbook: distselect.yml
+- import_playbook: hive-db.yml
+- import_playbook: ranger-db.yml
+- import_playbook: hdp-services.yml
