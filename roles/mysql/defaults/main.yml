@@ -1,0 +1,6 @@
+---
+mysql_root_user: "root"                
+mysql_port: 3306
+mysql_instance_name: ""                
+mysql_first_install: true
+mysql_datadir: "/var/lib/mysql"

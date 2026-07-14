@@ -1,0 +1,152 @@
+---
+# Clean Java installation role – no grep/release parsing
+
+- name: Ensure tar and gzip are installed
+  dnf:
+    name:
+      - tar
+      - gzip
+    state: present
+
+- name: Create Java base directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - "{{ java_install_base_dir }}"
+    - "/usr/share/java"
+    - "{{ java_config_dir }}"
+
+- name: Touch Java profile file if not exists
+  file:
+    path: "{{ java_profile_path }}"
+    state: touch
+    mode: '0644'
+
+- name: Copy JDK tar.gz files to remote nodes
+  copy:
+    src: "java/{{ jdk_version.value.filename }}"
+    dest: "/tmp/{{ jdk_version.value.filename }}"
+    mode: '0644'
+  loop: "{{ jdk_versions | dict2items }}"
+  loop_control:
+    loop_var: jdk_version
+  when: jdk_version.value.enabled == 'y'
+
+- name: Extract JDK tar archives
+  command: tar -xzf "/tmp/{{ jdk_version.value.filename }}" -C "{{ java_install_base_dir }}"
+  args:
+    creates: "{{ jdk_version.value.install_path }}"
+    chdir: "{{ java_install_base_dir }}"
+  changed_when: true
+  loop: "{{ jdk_versions | dict2items }}"
+  loop_control:
+    loop_var: jdk_version
+  when: jdk_version.value.enabled == 'y'
+
+- name: Clean up tar.gz files on remote nodes
+  file:
+    path: "/tmp/{{ jdk_version.value.filename }}"
+    state: absent
+  loop: "{{ jdk_versions | dict2items }}"
+  loop_control:
+    loop_var: jdk_version
+  when: jdk_version.value.enabled == 'y'
+
+- name: Find bin files for alternatives slaves
+  find:
+    paths: "{{ jdk_version.value.install_path }}/bin"
+    file_type: file
+    recurse: no
+  register: bin_files
+  loop: "{{ jdk_versions | dict2items }}"
+  loop_control:
+    loop_var: jdk_version
+  when: jdk_version.value.enabled == 'y'
+
+- name: Find man pages (if any) for alternatives slaves
+  find:
+    paths: "{{ jdk_version.value.install_path }}/man/man1"
+    file_type: file
+    recurse: no
+  register: man_files
+  ignore_errors: yes
+  loop: "{{ jdk_versions | dict2items }}"
+  loop_control:
+    loop_var: jdk_version
+  when: jdk_version.value.enabled == 'y'
+
+- name: Register each JDK in update-alternatives
+  command: >-
+    update-alternatives --install {{ java_home_link }} java_home {{ jdk_version.value.install_path }} 100
+    {% for f in bin_files.results[loop_index].files %} --slave /usr/bin/{{ f.path | basename }} {{ f.path | basename }} {{ f.path }}{% endfor %}
+    {% for m in man_files.results[loop_index].files | default([]) %} --slave /usr/share/man/man1/{{ m.path | basename }} {{ m.path | basename }} {{ m.path }}{% endfor %}
+  loop: "{{ jdk_versions | dict2items }}"
+  loop_control:
+    loop_var: jdk_version
+    index_var: loop_index
+  when: jdk_version.value.enabled == 'y'
+  register: alt_result
+  changed_when: "'already set' not in alt_result.stdout | default('')"
+
+- name: Set ownership on all Java dirs
+  file:
+    path: "{{ java_install_base_dir }}"
+    state: directory
+    recurse: yes
+    owner: root
+    group: root
+
+- name: Configure Java environment (profile + /etc/environment)
+  block:
+    - name: Add JAVA_HOME / PATH / JRE_HOME / CLASSPATH to profile
+      blockinfile:
+        path: "{{ java_profile_path }}"
+        block: |
+          export JAVA_HOME={{ java_home_link }}
+          export PATH=$JAVA_HOME/bin:$PATH
+          export JRE_HOME={{ java_home_link }}
+          [[ -d {{ java_home_link }}/jre ]] && export JRE_HOME={{ java_home_link }}/jre
+          export CLASSPATH=$CLASSPATH:/usr/share/java
+        marker: "# {mark} ANSIBLE MANAGED - JAVA ENVIRONMENT"
+        create: yes
+
+    - name: Set JAVA_HOME in /etc/environment
+      lineinfile:
+        path: /etc/environment
+        regexp: '^JAVA_HOME='
+        line: 'JAVA_HOME={{ java_home_link }}'
+        create: yes
+
+    - name: Add HADOOP_CLASSPATH
+      lineinfile:
+        path: "/etc/profile.d/dataplatform_profile.sh"
+        line: 'export HADOOP_CLASSPATH=/data/jars/*:/usr/lib/hadoop/lib/*'
+        create: yes
+
+    - name: Mark configuration as done
+      file:
+        path: "{{ java_config_dir }}/javaOsConfigured"
+        state: touch
+        mode: '0644'
+  when: not (java_config_dir + '/javaOsConfigured') is file
+
+- name: Set default Java to JDK 17 (change if you prefer another)
+  command: update-alternatives --set java_home {{ java_install_base_dir }}/jdk-17.0.6
+  ignore_errors: yes
+
+- name: Set /tmp permissions to 1777
+  file:
+    path: /tmp
+    mode: '1777'
+    recurse: yes
+
+- name: Set Java tmpdir permissions (dynamic)
+  shell: >-
+    {{ java_home_link }}/bin/java -XshowSettings:properties -version 2>&1 |
+    grep java.io.tmpdir | sed -n 's/.*= *//p' | xargs -I {} chmod -R 1777 {}
+  changed_when: false
+  ignore_errors: yes

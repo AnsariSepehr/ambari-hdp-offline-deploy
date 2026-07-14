@@ -1,0 +1,26 @@
+- name: Determine MySQL service name (supports named instances)
+  set_fact:
+    mysql_service_name: >-
+      {%- if mysql_instance_name -%}
+      mysqld@{{ mysql_instance_name }}.service
+      {%- else -%}
+      mysqld.service
+      {%- endif -%}
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Ensure MySQL log file is touchable
+  file:
+    path: /var/log/mysqld.log
+    state: touch
+    owner: mysql
+    group: mysql
+    mode: '0644'
+
+- name: Enable and start MySQL service
+  systemd:
+    name: "{{ mysql_service_name }}"
+    enabled: yes
+    state: started

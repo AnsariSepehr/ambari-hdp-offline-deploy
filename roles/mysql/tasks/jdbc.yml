@@ -1,0 +1,24 @@
+- name: Ensure /usr/share/java directory exists
+  file:
+    path: /usr/share/java
+    state: directory
+    mode: '0755'
+
+- name: Copy MySQL JDBC connector 9.6.0 from role files
+  copy:
+    src: java/mysql-connector-j-9.6.0.jar
+    dest: /usr/share/java/mysql-connector-j-9.6.0.jar
+    mode: '0644'
+
+- name: Copy MySQL JDBC connector 8.4.0 from role files
+  copy:
+    src: java/mysql-connector-j-8.4.0.jar
+    dest: /usr/share/java/mysql-connector-j-8.4.0.jar
+    mode: '0644'
+
+- name: Create symlink to default JDBC driver (points to 8.0.32 as in your script)
+  file:
+    src: /usr/share/java/mysql-connector-j-9.6.0.jar
+    dest: /usr/share/java/mysql-connector-java.jar
+    state: link
+    force: yes

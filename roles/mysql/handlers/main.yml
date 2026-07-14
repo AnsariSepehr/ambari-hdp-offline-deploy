@@ -1,0 +1,4 @@
+- name: Restart MySQL
+  systemd:
+    name: "{{ mysql_service_name }}"
+    state: restarted

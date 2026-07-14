@@ -1,0 +1,23 @@
+---
+java_install_base_dir: '/usr/lib/jvm'
+java_home_link: '/usr/lib/jvm/current'
+java_config_dir: '/etc/java'
+java_profile_path: '/etc/profile.d/dataplatform_java_profile.sh'
+
+jdk_versions:
+  8:
+    enabled: "y"
+    filename: "jdk-8u202-linux-x64.tar.gz"
+    install_path: "/usr/lib/jvm/jdk1.8.0_202"
+  11:
+    enabled: "y"
+    filename: "jdk-11.0.11_linux-x64_bin.tar.gz"
+    install_path: "/usr/lib/jvm/jdk-11.0.11"
+  17:
+    enabled: "y"
+    filename: "jdk-17.0.6_linux-x64_bin.tar.gz"
+    install_path: "/usr/lib/jvm/jdk-17.0.6"
+  21:
+    enabled: "y"
+    filename: "jdk-21.0.1_linux-x64_bin.tar.gz"
+    install_path: "/usr/lib/jvm/jdk-21.0.1"

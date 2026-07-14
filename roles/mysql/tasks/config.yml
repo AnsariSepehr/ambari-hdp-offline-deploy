@@ -1,0 +1,14 @@
+- name: Create custom MySQL data directory
+  file:
+    path: "{{ mysql_datadir }}"
+    state: directory
+    owner: mysql
+    group: mysql
+    mode: '0750'
+
+- name: Deploy my.cnf configuration
+  template:
+    src: my.cnf.j2
+    dest: /etc/my.cnf
+    mode: '0644'
+  notify: Restart MySQL

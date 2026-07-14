@@ -1,0 +1,14 @@
+- name: Install specific MySQL 8.0.43 packages and dependencies
+  dnf:
+    name:
+      - mysql-8.0.43-1.el9_6
+      - mysql-server-8.0.43-1.el9_6
+      - mysql-common-8.0.43-1.el9_6
+      - mysql-errmsg-8.0.43-1.el9_6
+      - mysql-libs-8.0.43-1.el9_6
+      - mysql-devel-8.0.43-1.el9_6
+      - wget
+      - curl
+      - rsyslog-mysql
+      - python3-PyMySQL
+    state: present

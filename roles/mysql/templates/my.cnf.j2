@@ -1,0 +1,22 @@
+[mysqld]
+datadir = {{ mysql_datadir }}
+socket = {{ mysql_datadir }}/mysql.sock
+
+bind-address = 0.0.0.0
+port = {{ mysql_port }}
+
+max_connections = 1000
+max_allowed_packet = 256M
+
+character-set-server = utf8
+collation-server = utf8_general_ci
+
+default_authentication_plugin = mysql_native_password
+
+log_error = /var/log/mysqld.log
+pid-file = /var/run/mysqld/mysqld.pid
+
+[client]
+default-character-set = utf8
+port = {{ mysql_port }}
+socket = {{ mysql_datadir }}/mysql.sock
