@@ -1,0 +1,20 @@
+---
+- name: Deploy custom ambari-agent systemd service
+  copy:
+    src: ../files/ambari-agent.service
+    dest: /etc/systemd/system/ambari-agent.service
+    mode: '0644'
+  notify: Restart Ambari Agent
+  become: yes
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+  become: yes
+
+- name: Ensure Ambari Agent is enabled and started
+  systemd:
+    name: ambari-agent
+    enabled: yes
+    state: started
+  become: yes

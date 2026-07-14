@@ -1,0 +1,25 @@
+---
+# Ambari user configuration
+ambari_user: root
+ambari_user_shell: /bin/bash
+ambari_user_home: /home/ambari
+
+# Database configuration
+ambari_db_name: ambari
+ambari_db_host: "{{ ansible_fqdn }}"
+
+# Java configuration
+# ambari_java_home: JDK 17 - used by the Ambari server process itself
+# ambari_jdk_home:  JDK 8  - used by cluster components (HDFS, YARN, etc.)
+ambari_java_home: /usr/lib/jvm/jdk-17.0.6
+ambari_jdk_home: /usr/lib/jvm/jdk1.8.0_202
+
+# Nginx configuration - HTTP only, no SSL
+nginx_conf_dir: /etc/nginx
+nginx_logs_dir: /var/log/nginx
+nginx_listen_ip: "{{ ansible_default_ipv4.address }}"
+nginx_listen_port: 80
+
+# Offline BIGTOP repo used by the custom stack built in postinstall.yml.
+# Point this at your own internal Nexus/Artifactory mirror.
+bigtop_repo_baseurl: "https://your-internal-repo.example.com/repository/rocky-bigtop-hosted-yum/rocky9/3.4.0/x86_64"

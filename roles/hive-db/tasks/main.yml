@@ -1,0 +1,37 @@
+---
+- name: Ensure Hive database exists with UTF8 charset
+  community.mysql.mysql_db:
+    name: "{{ hive_db_name }}"
+    encoding: utf8
+    collation: utf8_general_ci
+    state: present
+    login_user: "{{ hive_db_root_user }}"
+    login_password: "{{ hive_db_root_password }}"
+    login_host: "{{ hive_db_host }}"
+    login_port: "{{ hive_db_port }}"
+  delegate_to: "{{ groups['ambari_server'][0] }}"   # run only on A01
+- name: Create Hive database user with privileges
+  community.mysql.mysql_user:
+    name: "{{ hive_db_user }}"
+    password: "{{ hive_db_password }}"
+    host: "{{ item }}"
+    priv: "{{ hive_db_name }}.*:ALL"
+    state: present
+    login_user: "{{ hive_db_root_user }}"
+    login_password: "{{ hive_db_root_password }}"
+    login_host: "{{ hive_db_host }}"
+    login_port: "{{ hive_db_port }}"
+  loop:
+    - localhost
+    - "%"
+    - "{{ ansible_fqdn }}"
+    - "{{ hive_db_host }}"
+  delegate_to: "{{ groups['ambari_server'][0] }}"   # run only on A01
+- name: Flush MySQL privileges
+  community.mysql.mysql_query:
+    query: "FLUSH PRIVILEGES;"
+    login_user: "{{ hive_db_root_user }}"
+    login_password: "{{ hive_db_root_password }}"
+    login_host: "{{ hive_db_host }}"
+    login_port: "{{ hive_db_port }}"
+  delegate_to: "{{ groups['ambari_server'][0] }}"

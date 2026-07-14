@@ -1,0 +1,38 @@
+---
+- name: Install Nginx
+  dnf:
+    name: nginx
+    state: present
+  become: yes
+
+# FIX: Ansible resolves template src relative to the role's templates/ directory.
+#      Removed the incorrect ../templates/ prefix.
+- name: Copy Nginx configuration for Ambari proxy
+  template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_conf_dir }}/conf.d/ambari.conf"
+    mode: '0644'
+  become: yes
+  notify: Restart Nginx
+
+- name: Remove default Nginx configuration if exists
+  file:
+    path: "{{ nginx_conf_dir }}/conf.d/default.conf"
+    state: absent
+  become: yes
+  notify: Restart Nginx
+
+- name: Ensure default Nginx welcome page is disabled
+  file:
+    path: /usr/share/nginx/html/index.html
+    state: absent
+  become: yes
+  ignore_errors: yes
+
+- name: Enable and start Nginx service
+  systemd:
+    name: nginx
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  become: yes

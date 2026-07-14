@@ -1,0 +1,69 @@
+---
+# FIX: distutils.sysconfig is removed in Python 3.12+. Use sysconfig instead.
+- name: Sync Ambari Python libraries to system site-packages
+  shell: |
+    rsync -av --exclude='__pycache__/' /usr/lib/ambari-server/lib/ \
+      $(python3 -c 'import sysconfig; print(sysconfig.get_path("purelib"))')/
+  changed_when: false
+  become: yes
+
+- name: Create /usr/jdk64 directory for Ambari JDK detection
+  file:
+    path: /usr/jdk64
+    state: directory
+    mode: '0755'
+  become: yes
+
+# NOTE: Symlinks JDK 17 as the fake JDK 8 path so Ambari skips --add-opens injection
+#       which would break the JDK 17 server startup. Intentional hack.
+- name: Symlink JDK 17 as fake JDK 8 path for Ambari detection
+  file:
+    src: "{{ ambari_java_home }}"
+    dest: /usr/jdk64/jdk1.8.0_202
+    state: link
+    force: yes
+  become: yes
+
+- name: Copy MySQL JDBC connector to temp location for setup command
+  copy:
+    src: mysql-connector-j-9.6.0.jar
+    dest: /tmp/mysql-connector-java.jar
+    mode: '0644'
+  become: yes
+
+# FIX: Removed args.creates guard on password.dat because config.yml already writes it,
+#      which would cause setup to be skipped on re-runs even when needed.
+#      Using a dedicated sentinel file instead.
+- name: Run Ambari server setup (silent - server on JDK 17, cluster JDK 8)
+  command: >-
+    ambari-server setup --silent --verbose
+    --ambari-java-home={{ ambari_java_home }}
+    --java-home={{ ambari_jdk_home }}
+    --jdbc-db=mysql
+    --jdbc-driver=/tmp/mysql-connector-java.jar
+    --database=mysql
+    --databasehost={{ ansible_fqdn }}
+    --databaseport=3306
+    --databasename={{ ambari_db_name }}
+    --databaseusername={{ vault_ambari_db_user }}
+    --databasepassword={{ vault_ambari_db_password }}
+  args:
+    creates: /etc/ambari-server/.setup_done
+  register: ambari_setup_result
+  become: yes
+
+- name: Mark Ambari setup as complete
+  file:
+    path: /etc/ambari-server/.setup_done
+    state: touch
+    mode: '0600'
+  become: yes
+  when: ambari_setup_result is changed
+
+- name: Enable and start Ambari server
+  systemd:
+    name: ambari-server
+    enabled: yes
+    state: restarted
+    daemon_reload: yes
+  become: yes

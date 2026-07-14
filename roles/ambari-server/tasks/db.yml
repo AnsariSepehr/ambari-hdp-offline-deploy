@@ -1,0 +1,69 @@
+---
+- name: Ensure Ambari database user exists with full privileges
+  community.mysql.mysql_user:
+    name: "{{ vault_ambari_db_user }}"
+    password: "{{ vault_ambari_db_password }}"
+    host: "{{ item }}"
+    priv: "*.*:ALL,GRANT"
+    state: present
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+  loop:
+    - localhost
+    - "%"
+    - "{{ ansible_fqdn }}"
+  become: yes
+
+# NOTE: Drop then recreate gives a clean schema on every run. Intentional for fresh setup.
+- name: Drop Ambari database (for fresh setup)
+  community.mysql.mysql_db:
+    name: "{{ ambari_db_name }}"
+    state: absent
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+  become: yes
+
+- name: Create Ambari database with UTF8 collation
+  community.mysql.mysql_db:
+    name: "{{ ambari_db_name }}"
+    encoding: utf8
+    collation: utf8_general_ci
+    state: present
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+  become: yes
+
+# FIX: Use the correct path (files/ directory, not ../files/) for copy src.
+#      Ansible resolves copy src relative to the role's files/ dir automatically.
+- name: Copy MySQL 8 compatible Ambari DDL schema from role files
+  copy:
+    src: Ambari-DDL-MySQL-CREATE.sql
+    dest: /var/lib/ambari-server/resources/Ambari-DDL-MySQL-CREATE.sql
+    mode: '0644'
+  become: yes
+
+# FIX: Since we always drop+recreate above, the schema check is now only used as a
+#      safety guard. Because the DB is always fresh here, we always import.
+#      Kept the check in case you remove the drop task later.
+- name: Check if Ambari schema is already imported (presence of 'stacks' table)
+  community.mysql.mysql_query:
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+    login_db: "{{ ambari_db_name }}"
+    query: "SHOW TABLES LIKE 'stacks';"
+  register: ambari_schema_check
+  ignore_errors: yes
+  become: yes
+
+# FIX: Corrected the when condition. query_result[0] is a list of rows;
+#      if empty the table does not exist and we must import.
+- name: Import Ambari schema into database
+  community.mysql.mysql_db:
+    name: "{{ ambari_db_name }}"
+    state: import
+    target: /var/lib/ambari-server/resources/Ambari-DDL-MySQL-CREATE.sql
+    login_user: root
+    login_password: "{{ vault_mysql_root_password }}"
+  when: ambari_schema_check.failed | default(false) or
+        (ambari_schema_check.query_result is defined and ambari_schema_check.query_result[0] | length == 0)
+  become: yes

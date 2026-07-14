@@ -1,0 +1,152 @@
+---
+# FIX: Added become: yes - /etc/ambari-server/conf is a root-owned path.
+- name: Ensure ambari.properties exists (touch if missing)
+  file:
+    path: /etc/ambari-server/conf/ambari.properties
+    state: touch
+    mode: '0644'
+  become: yes
+
+- name: Set JDBC driver class for standard connection
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.jdbc\.driver='
+    line: 'server.jdbc.driver=com.mysql.cj.jdbc.Driver'
+    create: yes
+  become: yes
+
+- name: Set JDBC driver class for RCA connection
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.jdbc\.rca\.driver='
+    line: 'server.jdbc.rca.driver=com.mysql.cj.jdbc.Driver'
+    create: yes
+  become: yes
+
+- name: Set Ambari JDBC URL with TLS options
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.jdbc\.url='
+    line: "server.jdbc.url=jdbc:mysql://{{ ansible_fqdn }}:3306/{{ ambari_db_name }}?useSSL=true&verifyServerCertificate=false&enabledTLSProtocols=TLSv1.2"
+    create: yes
+  become: yes
+
+# FIX: Removed duplicate server.jdbc.database block that appeared later in the file.
+#      Keeping only one authoritative entry here.
+- name: Set Ambari JDBC database type
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.jdbc\.database='
+    line: 'server.jdbc.database=mysql'
+    create: yes
+  become: yes
+
+- name: Set Ambari JDBC database_type validation property
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.jdbc\.database_type='
+    line: 'server.jdbc.database_type=mysql'
+    create: yes
+  become: yes
+
+- name: Set Ambari JDBC database name
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.jdbc\.database_name='
+    line: "server.jdbc.database_name={{ ambari_db_name }}"
+    create: yes
+  become: yes
+
+- name: Set server hostname
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.hostname='
+    line: "server.hostname={{ ansible_fqdn }}"
+    create: yes
+  become: yes
+
+- name: Set Java home to JDK 17 for server runtime
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^java\.home='
+    line: 'java.home={{ ambari_java_home }}'
+    create: yes
+  become: yes
+
+- name: Set JDK home to JDK 17 for server
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^jdk\.home='
+    line: 'jdk.home={{ ambari_java_home }}'
+    create: yes
+  become: yes
+
+- name: Set JDK 8 home for cluster components
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^jdk1\.8\.home='
+    line: 'jdk1.8.home={{ ambari_jdk_home }}'
+    create: yes
+  become: yes
+
+- name: Remove unnecessary JDK/JCE download URLs
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^jdk1\.8\.(url|jcpol-url)='
+    state: absent
+  become: yes
+
+- name: Set Ambari database username
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.jdbc\.user\.name='
+    line: 'server.jdbc.user.name={{ vault_ambari_db_user }}'
+    create: yes
+  become: yes
+
+- name: Set Ambari server runtime user
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^ambari-server\.user='
+    line: 'ambari-server.user=root'
+    create: yes
+  become: yes
+
+- name: Set OS family in ambari.properties
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.os_family='
+    line: "server.os_family={{ ansible_os_family | lower }}"
+    create: yes
+  become: yes
+
+- name: Set OS type in ambari.properties
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.os_type='
+    line: "server.os_type={{ ansible_distribution | lower }}{{ ansible_distribution_major_version }}"
+    create: yes
+  become: yes
+
+- name: Set persistence type to remote (external MySQL)
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.persistence\.type='
+    line: 'server.persistence.type=remote'
+    create: yes
+  become: yes
+
+- name: Link JDBC password property to password file
+  lineinfile:
+    path: /etc/ambari-server/conf/ambari.properties
+    regexp: '^server\.jdbc\.user\.passwd='
+    line: 'server.jdbc.user.passwd=/etc/ambari-server/conf/password.dat'
+    create: yes
+  become: yes
+
+- name: Ensure Ambari database password file exists with secure permissions
+  copy:
+    dest: /etc/ambari-server/conf/password.dat
+    content: "{{ vault_ambari_db_password }}"
+    mode: '0600'
+  become: yes

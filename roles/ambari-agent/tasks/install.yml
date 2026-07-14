@@ -1,0 +1,9 @@
+---
+- name: Install Ambari Agent and required dependencies
+  dnf:
+    name:
+      - diffutils
+      - net-tools
+      - ambari-agent
+    state: present
+  become: yes

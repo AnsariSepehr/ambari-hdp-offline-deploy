@@ -1,0 +1,13 @@
+---
+- name: Install Ambari Server packages and dependencies
+  dnf:
+    name:
+      - httpd
+      - php
+      - sshpass
+      - ambari-server
+      - python3-psycopg2
+      - initscripts
+      - sudo
+    state: present
+  become: yes

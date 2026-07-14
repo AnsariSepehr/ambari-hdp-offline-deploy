@@ -1,0 +1,9 @@
+---
+hive_db_type: "mysql"
+hive_db_host: "10.0.0.1"          # IP/FQDN of the mysql host, or "{{ ansible_fqdn }}" if run locally
+hive_db_port: "3306"
+hive_db_name: "hive"
+hive_db_user: "hive"
+hive_db_password: "{{ vault_hive_db_password }}"
+hive_db_root_user: "root"
+hive_db_root_password: "{{ vault_mysql_root_password }}"

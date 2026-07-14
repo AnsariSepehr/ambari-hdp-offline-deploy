@@ -1,0 +1,157 @@
+---
+# FIX: Ansible resolves copy src relative to role files/ dir. Removed ../files/ prefix.
+- name: Copy MySQL JDBC connector for Ambari (post-install)
+  copy:
+    src: mysql-connector-j-9.6.0.jar
+    dest: /var/lib/ambari-server/resources/mysql-connector-java.jar
+    mode: '0644'
+  become: yes
+
+- name: Symlink MySQL JDBC driver into Ambari lib for classpath
+  file:
+    src: /var/lib/ambari-server/resources/mysql-connector-java.jar
+    dest: /usr/lib/ambari-server/mysql-connector-java.jar
+    state: link
+    force: yes
+  become: yes
+  notify: Restart Ambari Server
+
+- name: Copy MySQL JDBC driver to temp location for Ambari setup re-registration
+  copy:
+    src: /var/lib/ambari-server/resources/mysql-connector-java.jar
+    dest: /tmp/mysql-connector-java.jar
+    mode: '0644'
+    remote_src: yes
+  become: yes
+
+- name: Register MySQL JDBC driver with Ambari Server
+  command: >
+    ambari-server setup --jdbc-db=mysql
+    --jdbc-driver=/tmp/mysql-connector-java.jar
+  notify: Restart Ambari Server
+  become: yes
+
+- name: Clean up temp JDBC driver copy
+  file:
+    path: /tmp/mysql-connector-java.jar
+    state: absent
+  become: yes
+
+- name: Ensure BIGTOP 3.4.0 stack directory does not already exist (safety)
+  file:
+    path: /var/lib/ambari-server/resources/stacks/BIGTOP/3.4.0
+    state: absent
+  become: yes
+
+- name: Copy BIGTOP 3.3.0 stack as base for 3.4.0
+  command: cp -r /var/lib/ambari-server/resources/stacks/BIGTOP/3.3.0 /var/lib/ambari-server/resources/stacks/BIGTOP/3.4.0
+  args:
+    creates: /var/lib/ambari-server/resources/stacks/BIGTOP/3.4.0/metainfo.xml
+  become: yes
+
+# FIX: Added owner and group to the file task - without them the recurse does nothing useful.
+- name: Set ownership on BIGTOP 3.4.0 directory
+  file:
+    path: /var/lib/ambari-server/resources/stacks/BIGTOP/3.4.0
+    owner: "{{ ambari_user }}"
+    group: "{{ ambari_user }}"
+    recurse: yes
+  become: yes
+
+- name: Ensure pip is installed
+  ansible.builtin.package:
+    name: python3-pip
+    state: present
+  become: yes
+
+- name: Install lxml for Ansible xml module (from local DNF repo)
+  dnf:
+    name: python3-lxml
+    state: present
+  become: yes
+
+- name: Set active to true in BIGTOP 3.4.0 metainfo.xml
+  xml:
+    path: /var/lib/ambari-server/resources/stacks/BIGTOP/3.4.0/metainfo.xml
+    xpath: /metainfo/versions/active
+    value: "true"
+  become: yes
+
+- name: Set extends to 3.3.0 in BIGTOP 3.4.0 metainfo.xml
+  xml:
+    path: /var/lib/ambari-server/resources/stacks/BIGTOP/3.4.0/metainfo.xml
+    xpath: /metainfo/extends
+    value: "3.3.0"
+  become: yes
+
+- name: Find all service metainfo.xml files in BIGTOP stacks
+  find:
+    paths:
+      - /var/lib/ambari-server/resources/stacks/BIGTOP/3.2.0/services
+      - /var/lib/ambari-server/resources/stacks/BIGTOP/3.4.0/services
+    patterns: "metainfo.xml"
+    recurse: yes
+  register: metainfo_files
+  become: yes
+
+- name: Remove _${stack_version} suffix from all BIGTOP service package names
+  replace:
+    path: "{{ item.path }}"
+    regexp: '_\$\{stack_version\}'
+    replace: ''
+  loop: "{{ metainfo_files.files }}"
+  become: yes
+
+- name: List of services to update version for in BIGTOP 3.4.0
+  set_fact:
+    services_to_update:
+      - { dir: HDFS,              version: "3.3.6"  }
+      - { dir: YARN,              version: "3.3.6"  }
+      - { dir: HIVE,              version: "4.0.1"  }
+      - { dir: TEZ,               version: "0.10.4" }
+      - { dir: SPARK,             version: "3.5.3"  }
+      - { dir: ZOOKEEPER,         version: "3.8.4"  }
+      - { dir: SOLR,              version: "8.11.4" }
+      - { dir: RANGER,            version: "2.6.0"  }
+      - { dir: AMBARI-METRICS,    version: "3.1.0"  }
+      - { dir: AMBARI_INFRA_SOLR, version: "3.0.0"  }
+
+# FIX: failed_when was checking .msg which only exists on error; using a safer check.
+- name: Update version in each service metainfo.xml
+  xml:
+    path: "/var/lib/ambari-server/resources/stacks/BIGTOP/3.4.0/services/{{ item.dir }}/metainfo.xml"
+    xpath: /metainfo/version
+    value: "{{ item.version }}"
+  loop: "{{ services_to_update }}"
+  ignore_errors: yes
+  become: yes
+
+# FIX: repoinfo.xml os family tag must match what Ambari expects for Rocky 9.
+#      Ambari uses "redhat9" as the family identifier for RHEL/Rocky 9.
+# NOTE: baseurl is now templated from bigtop_repo_baseurl (roles/ambari-server/defaults/main.yml)
+#       rather than hardcoded, so this repo doesn't leak your internal Nexus/Artifactory hostname.
+- name: Write repoinfo.xml for BIGTOP 3.4.0 stack
+  copy:
+    dest: /var/lib/ambari-server/resources/stacks/BIGTOP/3.4.0/repos/repoinfo.xml
+    content: |
+      <?xml version="1.0"?>
+      <reposinfo>
+        <os family="redhat9">
+          <repo>
+            <baseurl>{{ bigtop_repo_baseurl }}</baseurl>
+            <repoid>BIGTOP-3.4.0</repoid>
+            <reponame>Bigtop-3.4.0 - Local Nexus Repo (Rocky 9)</reponame>
+            <unique>true</unique>
+          </repo>
+        </os>
+      </reposinfo>
+    mode: '0644'
+    owner: "{{ ambari_user }}"
+    group: "{{ ambari_user }}"
+  become: yes
+
+- name: Restart ambari-server after stack changes
+  service:
+    name: ambari-server
+    state: restarted
+  become: yes

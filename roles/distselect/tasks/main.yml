@@ -1,0 +1,26 @@
+---
+- name: Install bigtop-select and chkconfig
+  dnf:
+    name:
+      - bigtop-select
+      - chkconfig
+    state: present
+- name: Check if backup of distro-select already exists
+  stat:
+    path: /usr/lib/bigtop-select/BCK-distro-select
+  register: distro_backup_stat
+- name: Backup original distro-select file (only if not already backed up)
+  copy:
+    src: /usr/lib/bigtop-select/distro-select
+    dest: /usr/lib/bigtop-select/BCK-distro-select
+    remote_src: yes
+    mode: preserve
+  when: not distro_backup_stat.stat.exists
+- name: Add hadoop-hdfs-dfsrouter entry to distro-select (if missing)
+  lineinfile:
+    path: /usr/lib/bigtop-select/distro-select
+    regexp: '^\s*"hadoop-hdfs-dfsrouter":\s*"hadoop-hdfs",'
+    line: '    "hadoop-hdfs-dfsrouter": "hadoop-hdfs",'
+    insertafter: '"hadoop-hdfs-zkfc": "hadoop-hdfs",'
+    state: present
+    backup: yes

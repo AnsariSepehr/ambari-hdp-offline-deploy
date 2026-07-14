@@ -1,0 +1,46 @@
+---
+# FIX: Added become: yes to the touch task (file lives under /etc which requires root)
+- name: Ensure ambari-server conf directory exists
+  file:
+    path: /etc/ambari-server/conf
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Copy MySQL JDBC connector for Ambari
+  copy:
+    src: mysql-connector-j-9.6.0.jar
+    dest: /var/lib/ambari-server/resources/mysql-connector-java.jar
+    mode: '0644'
+  become: yes
+
+- name: Copy BIGTOP 3.4.0 local repo definition for Ambari
+  copy:
+    src: BIGTOP-3.4.0-local.xml
+    dest: /tmp/BIGTOP-3.4.0-local.xml
+    mode: '0644'
+  become: yes
+
+- name: Symlink MySQL JDBC driver into Ambari lib for classpath
+  file:
+    src: /var/lib/ambari-server/resources/mysql-connector-java.jar
+    dest: /usr/lib/ambari-server/mysql-connector-java.jar
+    state: link
+    force: yes
+  become: yes
+  notify: Restart Ambari Server
+
+- name: Deploy custom ambari-server systemd service
+  copy:
+    src: ambari-server.service
+    dest: /etc/systemd/system/ambari-server.service
+    mode: '0644'
+  become: yes
+  notify: Restart Ambari Server
+
+# FIX: daemon_reload must come AFTER the service file is deployed.
+#      Moved here and removed stray notify (daemon_reload is not a service restart).
+- name: Reload systemd after service file change
+  systemd:
+    daemon_reload: yes
+  become: yes

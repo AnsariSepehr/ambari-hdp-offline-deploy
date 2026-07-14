@@ -1,0 +1,7 @@
+---
+# Non-sensitive defaults for Ambari Agent
+# Set this to the FQDN or IP of your Ambari Server node (the single host
+# in the [ambari_server] inventory group).
+ambari_server_host: "10.0.0.1"   # placeholder — override in group_vars/all.yml or inventory
+ambari_agent_java_home: "/usr/lib/jvm/jdk-17.0.6"
+ambari_agent_copy_hostname_scripts: false

@@ -1,0 +1,7 @@
+---
+- name: Restart Ambari Agent
+  systemd:
+    name: ambari-agent
+    state: restarted
+    daemon_reload: yes
+  become: yes

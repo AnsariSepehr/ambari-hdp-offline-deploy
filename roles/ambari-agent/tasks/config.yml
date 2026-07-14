@@ -1,0 +1,57 @@
+---
+- name: Copy MySQL JDBC connector for Ambari Agent (for future use)
+  copy:
+    src: mysql-connector-j-9.6.0.jar
+    dest: /usr/lib/ambari-agent/lib/mysql-connector-java.jar
+    mode: '0644'
+  notify: Restart Ambari Agent
+  become: yes
+
+- name: Configure ambari-agent.ini with Ambari Server hostname
+  lineinfile:
+    path: /etc/ambari-agent/conf/ambari-agent.ini
+    regexp: '^hostname\s*='
+    line: "hostname={{ ambari_server_host }}"
+    create: yes
+  notify: Restart Ambari Agent
+  become: yes
+
+- name: Set explicit java_home in ambari-agent.ini
+  lineinfile:
+    path: /etc/ambari-agent/conf/ambari-agent.ini
+    regexp: '^java_home\s*='
+    line: 'java_home=/usr/lib/jvm/jdk-17.0.6'    # FIXED: was jdk-17-0.6
+    create: yes
+  notify: Restart Ambari Agent                     # removed stray mode: '0644'
+  become: yes
+
+# DELETE THIS ENTIRE BLOCK - file lives in agent cache and gets overwritten on reconnect
+- name: Patch check_host.py to force JAVA_HOME fallback
+  lineinfile:
+    path: /var/lib/ambari-agent/cache/custom_actions/scripts/check_host.py
+    insertbefore: 'java_exec = os.path.join(java_home, "bin", java_bin)'
+    line: |
+      if java_home is None:
+          java_home = '/usr/lib/jvm/jdk-17.0.6'
+          Logger.warning("java_home was None in db_connection_check - forcing to /usr/lib/jvm/jdk-17.0.6")
+    backup: yes
+  notify: Restart Ambari Agent
+  become: yes
+
+- name: Copy custom public hostname script (for reference only)
+  copy:
+    src: ambari-agent-public-hostname.sh
+    dest: /etc/ambari-agent/conf/ambari-agent-public-hostname.sh
+    mode: '0755'
+  when: ambari_agent_copy_hostname_scripts
+  notify: Restart Ambari Agent
+  become: yes
+
+- name: Copy custom internal hostname script (for reference only)
+  copy:
+    src: ambari-agent-internal-hostname.sh
+    dest: /etc/ambari-agent/conf/ambari-agent-internal-hostname.sh
+    mode: '0755'
+  when: ambari_agent_copy_hostname_scripts
+  notify: Restart Ambari Agent
+  become: yes

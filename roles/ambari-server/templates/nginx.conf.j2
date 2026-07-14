@@ -1,0 +1,48 @@
+# Simplified Nginx configuration for Ambari
+# HTTP only, IP-based access, no SSL/TLS
+
+upstream ambari_backend {
+    server localhost:8080;
+}
+
+server {
+    listen {{ nginx_listen_port }};
+    server_name {{ nginx_listen_ip }};
+
+    # Log configuration
+    access_log {{ nginx_logs_dir }}/ambari-access.log;
+    error_log  {{ nginx_logs_dir }}/ambari-error.log warn;
+
+    # Buffer and timeout settings
+    proxy_buffers 64 512k;
+    proxy_buffer_size 512k;
+    proxy_busy_buffers_size 1024k;
+    proxy_max_temp_file_size 2048m;
+    client_max_body_size 512m;
+    large_client_header_buffers 8 32k;
+
+    location / {
+        proxy_pass http://ambari_backend;
+        
+        # Headers for proper proxying
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+
+        # Timeouts
+        proxy_connect_timeout 300s;
+        proxy_send_timeout    300s;
+        proxy_read_timeout    300s;
+
+        # Disable buffering for better real-time response
+        proxy_buffering off;
+        proxy_request_buffering off;
+
+        # WebSocket support
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}

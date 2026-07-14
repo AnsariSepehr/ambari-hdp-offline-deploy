@@ -1,0 +1,12 @@
+---
+- name: Restart Ambari Server
+  systemd:
+    name: ambari-server
+    state: restarted
+  become: yes
+
+- name: Restart Nginx
+  systemd:
+    name: nginx
+    state: restarted
+  become: yes
