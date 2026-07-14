@@ -1,0 +1,13 @@
+# Copy the JAXB jars into Solr's webapp lib directory
+cp /usr/lib/ambari-metrics-collector/jaxb-api-2.3.1.jar \
+   /usr/lib/ambari-infra-solr/server/solr-webapp/webapp/WEB-INF/lib/
+
+cp /usr/lib/ambari-metrics-collector/jaxb-impl-2.2.3-1.jar \
+   /usr/lib/ambari-infra-solr/server/solr-webapp/webapp/WEB-INF/lib/
+
+# Set correct ownership
+chown infra-solr:hadoop /usr/lib/ambari-infra-solr/server/solr-webapp/webapp/WEB-INF/lib/jaxb-api-2.3.1.jar
+chown infra-solr:hadoop /usr/lib/ambari-infra-solr/server/solr-webapp/webapp/WEB-INF/lib/jaxb-impl-2.2.3-1.jar
+
+# Verify they're there
+ls -la /usr/lib/ambari-infra-solr/server/solr-webapp/webapp/WEB-INF/lib/ | grep jaxb

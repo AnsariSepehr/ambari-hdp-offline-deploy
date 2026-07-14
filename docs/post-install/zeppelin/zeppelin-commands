@@ -1,0 +1,2 @@
+chown -R zeppelin:zeppelin /usr/bigtop/3.4.0/usr/lib/zeppelin/
+mkdir -p /usr/bigtop/3.4.0/var/lib/zeppelin/notebook

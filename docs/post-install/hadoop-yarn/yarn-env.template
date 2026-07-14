@@ -1,0 +1,78 @@
+export HADOOP_YARN_HOME={{hadoop_yarn_home}}
+USER="$(whoami)"
+export HADOOP_LOG_DIR={{yarn_log_dir_prefix}}/$USER
+export HADOOP_PID_DIR={{yarn_pid_dir_prefix}}/$USER
+export HADOOP_SECURE_LOG_DIR={{yarn_log_dir_prefix}}/$USER
+export HADOOP_SECURE_PID_DIR={{yarn_pid_dir_prefix}}/$USER
+export HADOOP_LIBEXEC_DIR={{hadoop_libexec_dir}}
+export JAVA_HOME={{java64_home}}
+export JAVA_LIBRARY_PATH="${JAVA_LIBRARY_PATH}:{{hadoop_java_io_tmpdir}}"
+
+export HADOOP_LOGLEVEL=${HADOOP_LOGLEVEL:-INFO}
+export HADOOP_ROOT_LOGGER=${HADOOP_ROOT_LOGGER:-INFO,console}
+export HADOOP_DAEMON_ROOT_LOGGER=${HADOOP_DAEMON_ROOT_LOGGER:-${HADOOP_LOGLEVEL},EWMA,RFA}
+
+export HADOOP_YARN_USER=${HADOOP_YARN_USER:-yarn}
+export HADOOP_CONF_DIR="${HADOOP_CONF_DIR:-$HADOOP_YARN_HOME/etc/hadoop}"
+
+if [ "$JAVA_HOME" != "" ]; then
+  JAVA_HOME=$JAVA_HOME
+fi
+if [ "$JAVA_HOME" = "" ]; then
+  echo "Error: JAVA_HOME is not set."
+  exit 1
+fi
+
+JAVA=$JAVA_HOME/bin/java
+JAVA_HEAP_MAX=-Xmx1000m
+YARN_HEAPSIZE={{yarn_heapsize}}
+if [ "$YARN_HEAPSIZE" != "" ]; then
+  JAVA_HEAP_MAX="-Xmx""$YARN_HEAPSIZE""m"
+fi
+
+# === CRITICAL FIXES FOR REGISTRY DNS ===
+export YARN_NICENESS=""
+export HADOOP_NICENESS=""
+#export YARN_REGISTRYDNS_SECURE_USER=yarn
+#export HADOOP_REGISTRYDNS_SECURE_USER=yarn
+unset YARN_REGISTRYDNS_SECURE_USER
+unset HADOOP_REGISTRYDNS_SECURE_USER
+
+# Force disable secure mode (this is the main fix)
+export YARN_REGISTRYDNS_SECURE_EXTRA_OPTS=""
+
+export YARN_RESOURCEMANAGER_HEAPSIZE={{resourcemanager_heapsize}}
+export YARN_NODEMANAGER_HEAPSIZE={{nodemanager_heapsize}}
+export YARN_TIMELINESERVER_HEAPSIZE={{apptimelineserver_heapsize}}
+
+{% if security_enabled %}
+export YARN_RESOURCEMANAGER_OPTS="-Djava.security.auth.login.config={{yarn_jaas_file}}"
+export YARN_TIMELINESERVER_OPTS="-Djava.security.auth.login.config={{yarn_ats_jaas_file}}"
+export YARN_TIMELINEREADER_OPTS="-Djava.security.auth.login.config={{yarn_ats_jaas_file}}"
+export YARN_REGISTRYDNS_OPTS="-Djava.security.auth.login.config={{yarn_registry_dns_jaas_file}}"
+export YARN_NODEMANAGER_OPTS="-Djava.security.auth.login.config={{yarn_nm_jaas_file}} -Dsun.security.krb5.rcache=none"
+{% endif %}
+
+# JDK 17 module fixes
+export YARN_TIMELINESERVER_OPTS="$YARN_TIMELINESERVER_OPTS --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.base/java.util.regex=ALL-UNNAMED"
+export YARN_RESOURCEMANAGER_OPTS="$YARN_RESOURCEMANAGER_OPTS --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED"
+export YARN_NODEMANAGER_OPTS="$YARN_NODEMANAGER_OPTS --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED"
+
+HADOOP_OPTS="$HADOOP_OPTS -Dhadoop.log.dir=$HADOOP_LOG_DIR"
+HADOOP_OPTS="$HADOOP_OPTS -Dyarn.log.dir=$HADOOP_LOG_DIR"
+HADOOP_OPTS="$HADOOP_OPTS -Dhadoop.log.file=$HADOOP_LOGFILE"
+HADOOP_OPTS="$HADOOP_OPTS -Dyarn.log.file=$HADOOP_LOGFILE"
+HADOOP_OPTS="$HADOOP_OPTS -Dyarn.home.dir=$HADOOP_YARN_HOME"
+HADOOP_OPTS="$HADOOP_OPTS -Dyarn.id.str=$HADOOP_IDENT_STRING"
+HADOOP_OPTS="$HADOOP_OPTS -Dhadoop.root.logger=${HADOOP_ROOT_LOGGER:-INFO,console}"
+HADOOP_OPTS="$HADOOP_OPTS -Dyarn.root.logger=${HADOOP_ROOT_LOGGER:-INFO,console}"
+
+if [ "x$JAVA_LIBRARY_PATH" != "x" ]; then
+  HADOOP_OPTS="$HADOOP_OPTS -Djava.library.path=$JAVA_LIBRARY_PATH"
+fi
+HADOOP_OPTS="$HADOOP_OPTS -Dyarn.policy.file=$YARN_POLICYFILE"
+HADOOP_OPTS="$HADOOP_OPTS -Djava.io.tmpdir={{hadoop_java_io_tmpdir}}"
+
+{% if security_enabled %}
+HADOOP_OPTS="$HADOOP_OPTS -Djavax.security.auth.useSubjectCredsOnly=false"
+{% endif %}

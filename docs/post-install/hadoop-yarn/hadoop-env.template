@@ -1,0 +1,92 @@
+# Set Hadoop-specific environment variables here.
+
+export JAVA_HOME={{java_home}}
+export HADOOP_HOME_WARN_SUPPRESS=1
+
+export HADOOP_HOME=${HADOOP_HOME:-{{hadoop_home}}}
+export HADOOP_COMMON_HOME={{hadoop_home}}
+export HADOOP_HDFS_HOME={{hadoop_hdfs_home}}
+export HADOOP_MAPRED_HOME={{hadoop_mapred_home}}
+export HADOOP_YARN_HOME={{hadoop_yarn_home}}
+
+export YARN_NICENESS=0
+export HADOOP_NICENESS=0
+export HADOOP_CONF_DIR=${HADOOP_CONF_DIR:-{{hadoop_conf_dir}}}
+
+export JSVC_HOME={{jsvc_path}}
+
+if [[ ("$SERVICE" = "hiveserver2") || ("$SERVICE" = "metastore") || ("$SERVICE" = "cli") ]]; then
+  if [ "$HADOOP_HEAPSIZE" = "" ]; then
+    export HADOOP_HEAPSIZE="{{hadoop_heapsize}}"
+  fi
+else
+  export HADOOP_HEAPSIZE="{{hadoop_heapsize}}"
+fi
+
+export HADOOP_NAMENODE_INIT_HEAPSIZE="-Xms{{namenode_heapsize}}"
+
+{% if zk_principal_user is defined %}
+HADOOP_OPTS="-Dzookeeper.sasl.client.username={{zk_principal_user}} $HADOOP_OPTS"
+{% endif %}
+
+export HADOOP_OPTS="-Djava.net.preferIPv4Stack=true ${HADOOP_OPTS}"
+export HADOOP_OPTS="$HADOOP_OPTS --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED"
+
+
+USER="$(whoami)"
+
+# JDK 17 compatible options - removed CMS, PrintGCTimeStamps, PrintGCDetails,
+# PrintGCDateStamps, Xloggc (all removed/unsupported in JDK 9+/17)
+# Using G1GC and unified GC logging (-Xlog:gc) instead
+
+{% if java_version < 8 %}
+export HDFS_NAMENODE_OPTS="-server -XX:ParallelGCThreads=8 -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=70 -XX:ErrorFile={{hdfs_log_dir_prefix}}/$USER/hs_err_pid%p.log -XX:NewSize={{namenode_opt_newsize}} -XX:MaxNewSize={{namenode_opt_maxnewsize}} -Xlog:gc:{{hdfs_log_dir_prefix}}/$USER/gc.log -Xms{{namenode_heapsize}} -Xmx{{namenode_heapsize}} --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED -Dhadoop.security.logger=INFO,DRFAS -Dhdfs.audit.logger=INFO,DRFAAUDIT -Dorg.mortbay.jetty.Request.maxFormContentSize=-1 ${HDFS_NAMENODE_OPTS}"
+export HDFS_SECONDARYNAMENODE_OPTS="-server -XX:ParallelGCThreads=8 -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=70 -XX:ErrorFile={{hdfs_log_dir_prefix}}/$USER/hs_err_pid%p.log -XX:NewSize={{namenode_opt_newsize}} -XX:MaxNewSize={{namenode_opt_maxnewsize}} -Xlog:gc:{{hdfs_log_dir_prefix}}/$USER/gc.log ${HADOOP_NAMENODE_INIT_HEAPSIZE} -Xmx{{namenode_heapsize}} -Dhadoop.security.logger=INFO,DRFAS -Dhdfs.audit.logger=INFO,DRFAAUDIT ${HDFS_SECONDARYNAMENODE_OPTS}"
+export HADOOP_CLIENT_OPTS="-Xmx${HADOOP_HEAPSIZE}m $HADOOP_CLIENT_OPTS"
+{% else %}
+export HDFS_NAMENODE_OPTS="-server -XX:ParallelGCThreads=8 -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=70 -XX:ErrorFile={{hdfs_log_dir_prefix}}/$USER/hs_err_pid%p.log -XX:NewSize={{namenode_opt_newsize}} -XX:MaxNewSize={{namenode_opt_maxnewsize}} -Xlog:gc:{{hdfs_log_dir_prefix}}/$USER/gc.log -Xms{{namenode_heapsize}} -Xmx{{namenode_heapsize}} --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED -Dhadoop.security.logger=INFO,DRFAS -Dhdfs.audit.logger=INFO,DRFAAUDIT -Dorg.mortbay.jetty.Request.maxFormContentSize=-1 ${HDFS_NAMENODE_OPTS}"
+export HDFS_SECONDARYNAMENODE_OPTS="-server -XX:ParallelGCThreads=8 -XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=70 -XX:ErrorFile={{hdfs_log_dir_prefix}}/$USER/hs_err_pid%p.log -XX:NewSize={{namenode_opt_newsize}} -XX:MaxNewSize={{namenode_opt_maxnewsize}} -Xlog:gc:{{hdfs_log_dir_prefix}}/$USER/gc.log ${HADOOP_NAMENODE_INIT_HEAPSIZE} -Xmx{{namenode_heapsize}} -Dhadoop.security.logger=INFO,DRFAS -Dhdfs.audit.logger=INFO,DRFAAUDIT ${HDFS_SECONDARYNAMENODE_OPTS}"
+export HADOOP_CLIENT_OPTS="-Xmx${HADOOP_HEAPSIZE}m $HADOOP_CLIENT_OPTS"
+{% endif %}
+
+HADOOP_JOBTRACKER_OPTS="-server -XX:ParallelGCThreads=8 -XX:+UseG1GC -XX:ErrorFile={{hdfs_log_dir_prefix}}/$USER/hs_err_pid%p.log -XX:NewSize={{jtnode_opt_newsize}} -XX:MaxNewSize={{jtnode_opt_maxnewsize}} -Xlog:gc:{{hdfs_log_dir_prefix}}/$USER/gc.log -Xmx{{jtnode_heapsize}} -Dhadoop.security.logger=INFO,DRFAS -Dmapred.audit.logger=INFO,MRAUDIT -Dhadoop.mapreduce.jobsummary.logger=INFO,JSA ${HADOOP_JOBTRACKER_OPTS}"
+
+HADOOP_TASKTRACKER_OPTS="-server -Xmx{{ttnode_heapsize}} -Dhadoop.security.logger=ERROR,console -Dmapred.audit.logger=ERROR,console ${HADOOP_TASKTRACKER_OPTS}"
+HADOOP_DATANODE_OPTS="-XX:+UseG1GC -XX:InitiatingHeapOccupancyPercent=70 -XX:ConcGCThreads=4 -Xmx{{dtnode_heapsize}} --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED -Dhadoop.security.logger=ERROR,DRFAS ${HADOOP_DATANODE_OPTS}"
+HADOOP_BALANCER_OPTS="-server -Xmx{{hadoop_heapsize}}m ${HADOOP_BALANCER_OPTS}"
+
+export HADOOP_SECURE_DN_USER=${HADOOP_SECURE_DN_USER:-{{hadoop_secure_dn_user}}}
+export HADOOP_SSH_OPTS="-o ConnectTimeout=5 -o SendEnv=HADOOP_CONF_DIR"
+export HADOOP_LOG_DIR={{hdfs_log_dir_prefix}}/$USER
+export HADOOP_MAPRED_LOG_DIR={{mapred_log_dir_prefix}}/$USER
+export HADOOP_SECURE_DN_LOG_DIR={{hdfs_log_dir_prefix}}/$HADOOP_SECURE_DN_USER
+export HADOOP_PID_DIR={{hadoop_pid_dir_prefix}}/$USER
+export HADOOP_SECURE_DN_PID_DIR={{hadoop_pid_dir_prefix}}/$HADOOP_SECURE_DN_USER
+export HADOOP_MAPRED_PID_DIR={{mapred_pid_dir_prefix}}/$USER
+
+YARN_RESOURCEMANAGER_OPTS="-Dyarn.server.resourcemanager.appsummary.logger=INFO,RMSUMMARY -Drm.audit.logger=INFO,RMAUDIT"
+
+export HADOOP_IDENT_STRING=$USER
+
+JAVA_JDBC_LIBS=""
+if [ -d "/usr/share/java" ]; then
+  for jarFile in `ls /usr/share/java | grep -E "(mysql|ojdbc|postgresql|sqljdbc)" 2>/dev/null`
+  do
+    JAVA_JDBC_LIBS=${JAVA_JDBC_LIBS}:$jarFile
+  done
+fi
+
+export HADOOP_CLASSPATH=${HADOOP_CLASSPATH}${JAVA_JDBC_LIBS}
+
+if [ -d "{{tez_home}}" ]; then
+  export HADOOP_CLASSPATH=$HADOOP_CLASSPATH:{{tez_home}}/*:{{tez_home}}/lib/*:{{tez_conf_dir}}
+fi
+
+export HADOOP_LIBEXEC_DIR={{hadoop_libexec_dir}}
+export JAVA_LIBRARY_PATH=${JAVA_LIBRARY_PATH}:{{hadoop_lib_home}}/native
+
+{% if is_datanode_max_locked_memory_set %}
+if [ "$command" == "datanode" ] && [ "$EUID" -eq 0 ] && [ -n "$HADOOP_SECURE_DN_USER" ]; then
+  ulimit -l {{datanode_max_locked_memory}}
+fi
+{% endif %}

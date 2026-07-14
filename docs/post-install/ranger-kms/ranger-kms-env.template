@@ -1,0 +1,12 @@
+#!/bin/bash
+export JAVA_HOME={{java_home}}
+export RANGER_KMS_LOG_DIR={{kms_log_dir}}
+export RANGER_KMS_PID_DIR_PATH={{ranger_kms_pid_dir}}
+export KMS_USER={{kms_user}}
+ranger_kms_max_heap_size={{ranger_kms_max_heap_size}}
+{% if security_enabled %}
+export JAVA_OPTS=" ${JAVA_OPTS} -Dzookeeper.sasl.client.username={{zookeeper_principal_primary}} "
+{% endif %}
+# Java 17 module exemptions for Ranger KMS
+JAVA17_MODULE_OPTS="--add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.invoke=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.io=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/sun.nio.cs=ALL-UNNAMED --add-opens java.base/sun.security.action=ALL-UNNAMED --add-opens java.base/sun.util.calendar=ALL-UNNAMED --add-opens java.xml.crypto/com.sun.org.apache.xml.internal.security.utils=ALL-UNNAMED"
+export JAVA_OPTS="${JAVA_OPTS} ${JAVA17_MODULE_OPTS}"

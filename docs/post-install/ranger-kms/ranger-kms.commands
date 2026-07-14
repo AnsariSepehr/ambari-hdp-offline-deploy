@@ -1,0 +1,28 @@
+chown -R kms:kms /usr/lib/ranger-kms
+chmod o+x /usr/lib/ranger-kms/ranger-kms
+
+# Also fix the symlink for ranger-kms current
+ln -sfn /usr/lib/ranger-kms /usr/bigtop/3.4.0/usr/lib/ranger-kms
+ln -sfn /usr/lib/ranger-kms /usr/bigtop/current/ranger-kms
+
+# --- MySQL user password sync ---
+# Run these against your MySQL host. Replace 'your_rangerkms_password' /
+# 'your_ranger_password' with the REAL values from your vault
+# (vault_ranger_db_password / a KMS-specific vault var if you have one) —
+# never commit real passwords into this file.
+# Replace <mysql_host_ip> with your MySQL node's actual address.
+
+ALTER USER 'rangerkms'@'%' IDENTIFIED WITH mysql_native_password BY 'your_rangerkms_password';
+ALTER USER 'rangerkms'@'localhost' IDENTIFIED WITH mysql_native_password BY 'your_rangerkms_password';
+ALTER USER 'rangerkms'@'<mysql_host_ip>' IDENTIFIED WITH mysql_native_password BY 'your_rangerkms_password';
+FLUSH PRIVILEGES;
+
+# the same for ranger if needed
+ALTER USER 'ranger'@'%' IDENTIFIED WITH mysql_native_password BY 'your_ranger_password';
+ALTER USER 'ranger'@'localhost' IDENTIFIED WITH mysql_native_password BY 'your_ranger_password';
+ALTER USER 'ranger'@'<mysql_host_ip>' IDENTIFIED WITH mysql_native_password BY 'your_ranger_password';
+FLUSH PRIVILEGES;
+
+# JAVA_HOME fallback fix for RANGER_KMS, same pattern as Hive/Ranger above
+sed -i 's/ambari_java_home = config\["ambariLevelParams"\]\["ambari_java_home"\]/ambari_java_home = config["ambariLevelParams"].get("ambari_java_home") or "\/usr\/lib\/jvm\/jdk-17.0.6"/' \
+  /var/lib/ambari-agent/cache/stacks/BIGTOP/3.4.0/services/RANGER_KMS/package/scripts/params.py

@@ -1,0 +1,2 @@
+spark.sql.hive.metastore.version=2.3.9
+spark.sql.hive.metastore.jars=builtin

@@ -1,0 +1,36 @@
+# Run on every node where a Ranger component (admin, usersync, tagsync, kms)
+# is installed.
+
+# Fix the 3.4.0 intermediate path — same version-bridging pattern used by
+# the hdp-services role, but Ranger's own packages install outside that
+# role's symlink loop, so it needs to be patched manually here.
+mkdir -p /usr/bigtop/3.4.0/usr/lib/
+
+ln -sfn /usr/lib/ranger-tagsync /usr/bigtop/3.4.0/usr/lib/ranger-tagsync
+ln -sfn /usr/lib/ranger-admin /usr/bigtop/3.4.0/usr/lib/ranger-admin
+ln -sfn /usr/lib/ranger-usersync /usr/bigtop/3.4.0/usr/lib/ranger-usersync
+ln -sfn /usr/lib/ranger-kms /usr/bigtop/3.4.0/usr/lib/ranger-kms
+
+# Fix "current" convenience symlinks (some nodes may already have one or
+# two of these depending on which Ranger components were installed there)
+ln -sfn /usr/lib/ranger-tagsync /usr/bigtop/current/ranger-tagsync
+ln -sfn /usr/lib/ranger-admin /usr/bigtop/current/ranger-admin
+ln -sfn /usr/lib/ranger-usersync /usr/bigtop/current/ranger-usersync
+
+# Sanity checks
+ls -la /usr/bigtop/current/ranger-admin/ews/ranger-admin-services.sh
+ls -la /usr/bigtop/current/ranger-tagsync/ranger-tagsync-services.sh
+ls /usr/lib/ranger-tagsync/lib/ | grep -i cred
+
+# Ensure the service scripts are executable
+chmod o+x /usr/lib/ranger-tagsync/ranger-tagsync-services.sh
+chmod o+x /usr/lib/ranger-admin/ews/ranger-admin-services.sh
+chmod o+x /usr/lib/ranger-usersync/ranger-usersync-services.sh
+
+# Correct ownership (Ranger runs as its own service user)
+chown -R ranger:ranger /usr/lib/ranger-tagsync
+chown -R ranger:ranger /usr/lib/ranger-admin
+chown -R ranger:ranger /usr/lib/ranger-usersync
+
+# Confirm the credential builder tool is present in the tagsync jar set
+jar -tf /usr/lib/ranger-tagsync/lib/credentialbuilder-2.6.0.jar | grep buildks

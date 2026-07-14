@@ -1,0 +1,29 @@
+# The heap size of the jvm, and jvm args stared by hive shell script can be controlled via:
+if [ "$SERVICE" = "metastore" ]; then
+  export HADOOP_HEAPSIZE={{hive_metastore_heapsize}} # Setting for HiveMetastore
+  export HADOOP_OPTS="$HADOOP_OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Xlog:gc*:file={{hive_log_dir}}/hivemetastore-gc.log:time,uptime:filecount=10,filesize=10m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath={{hive_log_dir}}/hms_heapdump.hprof -Dhive.log.dir={{hive_log_dir}} -Dhive.log.file=hivemetastore.log"
+fi
+if [ "$SERVICE" = "hiveserver2" ]; then
+  export HADOOP_HEAPSIZE={{hive_heapsize}} # Setting for HiveServer2 and Client
+  export HADOOP_OPTS="$HADOOP_OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED -Xlog:gc*:file={{hive_log_dir}}/hiveserver2-gc.log:time,uptime:filecount=10,filesize=10m -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath={{hive_log_dir}}/hs2_heapdump.hprof -Dhive.log.dir={{hive_log_dir}} -Dhive.log.file=hiveserver2.log"
+fi
+{% if security_enabled %}
+export HADOOP_OPTS="$HADOOP_OPTS -Dzookeeper.sasl.client.username={{zk_principal_user}}"
+{% endif %}
+export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS  -Xms${HADOOP_HEAPSIZE}m -Xmx${HADOOP_HEAPSIZE}m"
+export HADOOP_CLIENT_OPTS="$HADOOP_CLIENT_OPTS{{heap_dump_opts}}"
+HADOOP_HOME=${HADOOP_HOME:-{{hadoop_home}}}
+export HIVE_HOME=${HIVE_HOME:-{{hive_home}}}
+export HIVE_CONF_DIR=${HIVE_CONF_DIR:-{{hive_conf_dir}}}
+if [ "${HIVE_AUX_JARS_PATH}" != "" ]; then
+  export HIVE_AUX_JARS_PATH=${HIVE_AUX_JARS_PATH}
+elif [ -d "{{hive_hcatalog_home}}" ]; then
+  export HIVE_AUX_JARS_PATH={{hive_hcatalog_home}}/share/hcatalog/hive-hcatalog-core-*.jar
+else
+  export HIVE_AUX_JARS_PATH={{hive_hcatalog_home}}/share/hcatalog/hcatalog-core.jar
+fi
+export METASTORE_PORT={{hive_metastore_port}}
+{% if sqla_db_used or lib_dir_available %}
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:{{jdbc_libs_dir}}"
+export JAVA_LIBRARY_PATH="$JAVA_LIBRARY_PATH:{{jdbc_libs_dir}}"
+{% endif %}

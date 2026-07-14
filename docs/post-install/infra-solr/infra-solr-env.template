@@ -1,0 +1,78 @@
+#!/bin/bash
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License. You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+SOLR_JAVA_HOME={{java64_home}}
+
+SOLR_JAVA_MEM="-Xms{{infra_solr_min_mem}}m -Xmx{{infra_solr_max_mem}}m"
+
+SOLR_JAVA_STACK_SIZE="-Xss{{infra_solr_java_stack_size}}m"
+
+GC_LOG_OPTS="{{infra_solr_gc_log_opts}} -Xloggc:{{infra_solr_log_dir}}/solr_gc.log"
+
+GC_TUNE="{{infra_solr_gc_tune}}"
+
+ZK_HOST="{{zookeeper_quorum}}{{infra_solr_znode}}"
+
+ZK_CLIENT_TIMEOUT="60000"
+
+SOLR_HOST=`hostname -f`
+
+ENABLE_REMOTE_JMX_OPTS="{{infra_solr_jmx_enabled}}"
+
+RMI_PORT={{infra_solr_jmx_port}}
+
+SOLR_OPTS="$SOLR_OPTS -Djava.rmi.server.hostname={{hostname}}"
+
+# Java 17 module system compatibility
+SOLR_OPTS="$SOLR_OPTS --add-opens java.base/java.lang=ALL-UNNAMED"
+SOLR_OPTS="$SOLR_OPTS --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
+SOLR_OPTS="$SOLR_OPTS --add-opens java.base/java.io=ALL-UNNAMED"
+SOLR_OPTS="$SOLR_OPTS --add-opens java.base/java.util=ALL-UNNAMED"
+SOLR_OPTS="$SOLR_OPTS --add-opens java.base/java.net=ALL-UNNAMED"
+
+{% if infra_solr_extra_java_opts -%}
+SOLR_OPTS="$SOLR_OPTS {{infra_solr_extra_java_opts}}"
+{% endif %}
+
+SOLR_PID_DIR={{infra_solr_piddir}}
+
+SOLR_HOME={{infra_solr_datadir}}
+
+LOG4J_PROPS={{infra_solr_conf}}/log4j2.xml
+
+SOLR_LOGS_DIR={{infra_solr_log_dir}}
+
+SOLR_PORT={{infra_solr_port}}
+
+{% if infra_solr_ssl_enabled %}
+SOLR_SSL_KEY_STORE={{infra_solr_keystore_location}}
+SOLR_SSL_KEY_STORE_PASSWORD={{infra_solr_keystore_password}}
+SOLR_SSL_TRUST_STORE={{infra_solr_truststore_location}}
+SOLR_SSL_TRUST_STORE_PASSWORD={{infra_solr_truststore_password}}
+SOLR_SSL_NEED_CLIENT_AUTH=false
+SOLR_SSL_WANT_CLIENT_AUTH=false
+{% endif %}
+
+{% if security_enabled -%}
+SOLR_JAAS_FILE={{infra_solr_jaas_file}}
+SOLR_KERB_KEYTAB={{infra_solr_web_kerberos_keytab}}
+SOLR_KERB_PRINCIPAL={{infra_solr_web_kerberos_principal}}
+SOLR_OPTS="$SOLR_OPTS -Dsolr.hdfs.security.kerberos.principal={{infra_solr_kerberos_principal}}"
+SOLR_OPTS="$SOLR_OPTS {{zk_security_opts}}"
+
+SOLR_AUTH_TYPE="kerberos"
+SOLR_AUTHENTICATION_OPTS=" -DauthenticationPlugin=org.apache.solr.security.KerberosPlugin -Djava.security.auth.login.config=$SOLR_JAAS_FILE -Dsolr.kerberos.principal=${SOLR_KERB_PRINCIPAL} -Dsolr.kerberos.keytab=${SOLR_KERB_KEYTAB} -Dsolr.kerberos.cookie.domain=${SOLR_HOST}"
+{% endif %}

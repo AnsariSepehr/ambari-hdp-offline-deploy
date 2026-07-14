@@ -1,0 +1,1 @@
+-XX:+UseG1GC -XX:NewRatio=3 -XX:SurvivorRatio=4 -XX:TargetSurvivorRatio=90 -XX:MaxTenuringThreshold=8 -XX:ConcGCThreads=4 -XX:ParallelGCThreads=4 -XX:+ParallelRefProcEnabled -XX:+UseStringDeduplication
