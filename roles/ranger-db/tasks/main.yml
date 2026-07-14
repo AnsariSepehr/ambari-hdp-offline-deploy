@@ -1,0 +1,80 @@
+---
+- name: Create Ranger Admin database with UTF8 charset
+  community.mysql.mysql_db:
+    name: "{{ ranger_db_name }}"
+    encoding: utf8
+    collation: utf8_general_ci
+    state: present
+    login_user: "{{ ranger_db_root_user }}"
+    login_password: "{{ ranger_db_root_password }}"
+    login_host: "{{ ranger_db_host }}"
+    login_port: "{{ ranger_db_port }}"
+  delegate_to: "{{ groups['ambari_server'][0] }}"
+
+- name: Create Ranger Audit database with UTF8 charset
+  community.mysql.mysql_db:
+    name: "{{ ranger_audit_db_name }}"
+    encoding: utf8
+    collation: utf8_general_ci
+    state: present
+    login_user: "{{ ranger_db_root_user }}"
+    login_password: "{{ ranger_db_root_password }}"
+    login_host: "{{ ranger_audit_db_host }}"
+    login_port: "{{ ranger_audit_db_port }}"
+  delegate_to: "{{ groups['ambari_server'][0] }}"
+
+- name: Create Ranger Admin user and grant privileges (admin + audit DBs)
+  community.mysql.mysql_user:
+    name: "{{ ranger_db_user }}"
+    password: "{{ ranger_db_password }}"
+    host: "{{ item }}"
+    priv: "{{ ranger_db_name }}.*:ALL/{{ ranger_audit_db_name }}.*:ALL"
+    append_privs: yes
+    state: present
+    login_user: "{{ ranger_db_root_user }}"
+    login_password: "{{ ranger_db_root_password }}"
+    login_host: "{{ ranger_db_host }}"
+    login_port: "{{ ranger_db_port }}"
+  loop: "{{ ranger_grant_hosts }}"
+  delegate_to: "{{ groups['ambari_server'][0] }}"
+
+- name: Create Ranger Audit user (if different) and grant privileges
+  community.mysql.mysql_user:
+    name: "{{ ranger_audit_db_user }}"
+    password: "{{ ranger_audit_db_password }}"
+    host: "{{ item }}"
+    priv: "{{ ranger_audit_db_name }}.*:ALL"
+    append_privs: yes
+    state: present
+    login_user: "{{ ranger_db_root_user }}"
+    login_password: "{{ ranger_db_root_password }}"
+    login_host: "{{ ranger_audit_db_host }}"
+    login_port: "{{ ranger_audit_db_port }}"
+  loop: "{{ ranger_grant_hosts }}"
+  when: ranger_audit_db_user != ranger_db_user
+  delegate_to: "{{ groups['ambari_server'][0] }}"
+
+- name: Flush MySQL privileges
+  community.mysql.mysql_query:
+    query: "FLUSH PRIVILEGES;"
+    login_user: "{{ ranger_db_root_user }}"
+    login_password: "{{ ranger_db_root_password }}"
+    login_host: "{{ ranger_db_host }}"
+    login_port: "{{ ranger_db_port }}"
+  delegate_to: "{{ groups['ambari_server'][0] }}"
+
+- name: Verify Ranger users exist
+  community.mysql.mysql_query:
+    query: "SELECT User, Host FROM mysql.user WHERE User IN ('{{ ranger_db_user }}', '{{ ranger_audit_db_user }}')"
+    login_user: "{{ ranger_db_root_user }}"
+    login_password: "{{ ranger_db_root_password }}"
+    login_host: "{{ ranger_db_host }}"
+    login_port: "{{ ranger_db_port }}"
+  register: ranger_users_check
+  delegate_to: "{{ groups['ambari_server'][0] }}"
+
+- name: Fail if Ranger users not created properly
+  fail:
+    msg: "Ranger users not found in MySQL after creation!"
+  when: ranger_users_check.query_result | length == 0
+  delegate_to: "{{ groups['ambari_server'][0] }}"

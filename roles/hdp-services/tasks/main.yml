@@ -1,0 +1,103 @@
+---
+- name: Clean yum/dnf cache completely
+  block:
+    - name: yum clean all
+      command: yum clean all
+
+    - name: Remove /var/cache/dnf/*
+      file:
+        path: /var/cache/dnf
+        state: absent
+      become: yes
+
+    - name: Recreate /var/cache/dnf (some systems expect it)
+      file:
+        path: /var/cache/dnf
+        state: directory
+        mode: '0755'
+      become: yes
+
+  become: yes
+
+- name: Install all requested Bigtop / Ambari-related packages
+  yum:
+    name: "{{ bigtop_packages }}"
+    state: present
+    update_cache: yes
+  become: yes
+
+
+- name: Ensure base Bigtop directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ bigtop_base }}/{{ bigtop_version }}/usr/lib"
+    - "{{ bigtop_base }}/current"
+  become: yes
+
+
+- name: Create version-specific symlinks (3.4.0 bridges)
+  file:
+    src: "{{ item.src }}"
+    dest: "{{ bigtop_base }}/{{ bigtop_version }}/usr/lib/{{ item.name }}"
+    state: link
+    force: yes
+  loop:
+    - { name: hadoop,          src: /usr/lib/hadoop }
+    - { name: hadoop-hdfs,     src: /usr/lib/hadoop-hdfs }
+    - { name: hadoop-yarn,     src: /usr/lib/hadoop-yarn }
+    - { name: hadoop-mapreduce,src: /usr/lib/hadoop-mapreduce }
+    - { name: zookeeper,       src: /usr/lib/zookeeper }
+    - { name: hive,            src: /usr/lib/hive }
+    - { name: hive-hcatalog,   src: /usr/lib/hive-hcatalog }
+    - { name: tez,             src: /usr/lib/tez }
+    - { name: hbase,           src: /usr/lib/hbase }
+    - { name: spark,           src: /usr/lib/spark }
+    - { name: zeppelin,        src: /usr/lib/zeppelin }
+    - { name: solr,            src: /usr/lib/solr }
+  become: yes
+  register: version_symlinks
+
+
+- name: Create /usr/lib/hive/lib if missing (some Ambari connectors expect it)
+  file:
+    path: /usr/lib/hive/lib
+    state: directory
+    mode: '0755'
+  become: yes
+
+
+- name: Create /usr/lib/spark/jars if missing
+  file:
+    path: /usr/lib/spark/jars
+    state: directory
+    mode: '0755'
+  become: yes
+
+
+- name: Create 'current' convenience symlinks for Ambari
+  file:
+    src: "{{ item.src }}"
+    dest: "{{ bigtop_base }}/current/{{ item.name }}"
+    state: link
+    force: yes
+  loop:
+    - { name: hive-client,     src: /usr/lib/hive }
+    - { name: hive-server2,    src: /usr/lib/hive }
+    - { name: hive-webhcat,    src: /usr/lib/hive-hcatalog }
+    - { name: hbase-client,    src: /usr/lib/hbase }
+    - { name: hbase-master,    src: /usr/lib/hbase }
+    - { name: hbase-regionserver, src: /usr/lib/hbase }
+    - { name: spark-client,    src: /usr/lib/spark }
+    - { name: spark-historyserver, src: /usr/lib/spark }
+  become: yes
+  register: current_symlinks
+
+
+- name: Show created symlinks (debug – optional, remove later)
+  debug:
+    msg: "{{ item.item.name }} → {{ item.dest }}"
+  loop: "{{ version_symlinks.results + current_symlinks.results }}"
+  when: item.changed | default(false)

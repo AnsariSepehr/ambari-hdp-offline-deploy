@@ -1,0 +1,27 @@
+---
+# Ranger Admin DB
+ranger_db_type: "mysql"
+ranger_db_host: "10.0.0.1"           # IP/FQDN of your mysql host
+ranger_db_port: "3306"
+ranger_db_name: "ranger"
+ranger_db_user: "ranger"
+ranger_db_password: "{{ vault_ranger_db_password }}"
+
+# Ranger Audit DB
+ranger_audit_db_type: "mysql"
+ranger_audit_db_host: "{{ ranger_db_host }}"  
+ranger_audit_db_port: "{{ ranger_db_port }}"
+ranger_audit_db_name: "ranger_logger"
+ranger_audit_db_user: "{{ ranger_db_user }}" 
+ranger_audit_db_password: "{{ vault_ranger_audit_db_password | default(vault_ranger_db_password) }}"
+
+# Root credentials (for creating DBs/users)
+ranger_db_root_user: "root"
+ranger_db_root_password: "{{ vault_mysql_root_password }}"
+
+# Common hosts to grant from (same as your script)
+ranger_grant_hosts:
+  - "localhost"
+  - "%"
+  - "RemoteServer"
+  - "{{ ansible_fqdn }}"                    

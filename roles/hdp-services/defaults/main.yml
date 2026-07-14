@@ -1,0 +1,30 @@
+---
+bigtop_version: "3.4.0"
+bigtop_base: "/usr/bigtop"
+
+# List of packages - you can override in inventory/group_vars if needed
+bigtop_packages:
+  - zookeeper
+  - hadoop
+  - hadoop-hdfs
+  - hadoop-yarn
+  - hadoop-mapreduce
+  - hadoop-client
+  - hive
+  - hive-hcatalog
+  - hive-webhcat
+  - tez
+  - spark
+  - zeppelin
+  - solr
+  - ambari-infra-solr
+  - ambari-infra-solr-client
+  - ambari-metrics-collector
+  - ambari-metrics-monitor
+  - ambari-metrics-hadoop-sink
+  - ranger-admin
+  - ranger-usersync
+  - ranger-kms
+  - ranger-hdfs-plugin
+  - ranger-yarn-plugin
+  - ranger-hive-plugin
